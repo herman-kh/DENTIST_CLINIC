@@ -1,0 +1,83 @@
+services:
+  auth_service:
+    build: 
+      context: ./auth
+      dockerfile: Dockerfile
+    container_name: auth_service
+    restart: always
+    ports:
+      - "8001:8001"  
+    depends_on:
+      - auth_db_dentist_clinic
+      - redis
+    volumes:
+      - ./auth:/app  
+    env_file:
+      - ./auth/.env  
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://amin:my_super_password@auth_db_dentist_clinic:5432/users
+    networks:
+      - app-network
+  auth_db_dentist_clinic:
+    image: postgres:15
+    container_name: auth_db_dentist_clinic
+    restart: always
+    environment:
+      POSTGRES_USER: amin
+      POSTGRES_PASSWORD: my_super_password
+      POSTGRES_DB: users
+    ports:
+      - "5434:5432"
+    volumes:
+      - auth_db_dentist_clinic_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  appointments_service:
+    build: 
+      context: ./appointments
+      dockerfile: Dockerfile
+    container_name: appointments_service
+    restart: always
+    ports:
+      - "8002:8002"  
+    depends_on:
+      - appointments_db_dentist_clinic
+    volumes:
+      - ./appointments:/app  
+    env_file:
+      - ./appointments/.env  
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://amin:my_super_password@appointments_db_dentist_clinic:5432/appointments
+    networks:
+      - app-network
+  appointments_db_dentist_clinic:
+    image: postgres:15
+    container_name: appointments_db_dentist_clinic
+    restart: always
+    environment:
+      POSTGRES_USER: amin
+      POSTGRES_PASSWORD: my_super_password
+      POSTGRES_DB: appointments
+    ports:
+      - "5435:5432"
+    volumes:
+      - appointments_db_dentist_clinic_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+volumes:
+  auth_db_dentist_clinic_data:
+    driver: local
+  appointments_db_dentist_clinic_data:
+    driver: local
+networks:
+  app-network:
+    name: app-network
+    driver: bridge

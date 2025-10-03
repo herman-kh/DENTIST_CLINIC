@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Google OAuth Test</title>
+</head>
+<body>
+  <h1>Google OAuth Test</h1>
+  <button id="loginBtn">Login with Google</button>
+
+  <h2>Result:</h2>
+  <pre id="output"></pre>
+
+  <script>
+    document.getElementById("loginBtn").onclick = () => {
+      // Жмём кнопку — идём на бекенд
+      window.location.href = "http://localhost:8001/auth/google/login";
+    };
+
+    // Если бекенд вернул токены в query params
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    const refresh = params.get("refresh_token");
+
+    if (token) {
+      document.getElementById("output").innerText =
+        "Access Token: " + token + "\nRefresh Token: " + refresh;
+    }
+  </script>
+</body>
+</html>
