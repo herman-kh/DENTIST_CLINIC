@@ -55,6 +55,16 @@ def get_current_admin(token: str = Depends(oauth2_scheme)):
 
     return payload
 
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Невалидный или просроченный токен",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return payload
+
 
 
 async def generate_time_slots(

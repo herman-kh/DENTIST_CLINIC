@@ -1,9 +1,10 @@
 from data.models import Doctor, DoctorSchedule, Appointment
 from .utils import decode_access_token
 import logging
-from datetime import date
+from datetime import date, datetime, time
 from sqlalchemy.orm import selectinload
 from sqlalchemy import select, delete, update
+from sqlalchemy.exc import IntegrityError
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from services.utils import generate_time_slots, generate_week_schedule
@@ -58,7 +59,8 @@ class AdminService:
 
     async def get_all_doctors(self) -> List[Doctor]:
         stmt = select(Doctor).options(
-            selectinload(Doctor.schedules)  
+            selectinload(Doctor.schedules),
+            selectinload(Doctor.appointments)  
         )
         result = await self.db.execute(stmt)
         return result.scalars().all()
@@ -122,38 +124,77 @@ class UserService:
 
         return schedule.available_slots
     
-    async def book_appointment(self, doctor_id: int, date_: datetime.date, time_: str):
+    async def book_appointment(
+        self,
+        doctor_id: int,
+        date_: "date",
+        time_: str,
+        patient_id: int
+    ) -> Appointment:
 
-        stmt = select(DoctorSchedule).where(
-            DoctorSchedule.doctor_id == doctor_id,
-            DoctorSchedule.date_ == date_
-        )
-        result = await self.db.execute(stmt)
-        schedule = result.scalar_one_or_none()
+        try:
+            parsed_time = datetime.strptime(time_, "%H:%M").time()
+        except ValueError:
+            raise ValueError("Неверный формат времени. Ожидается 'HH:MM'.")
 
-        if not schedule:
-            raise ValueError("No schedule found for this doctor on the selected date.")
+        appointment_datetime = datetime.combine(date_, parsed_time)
+        slot_str = parsed_time.strftime("%H:%M") 
 
-        if time_ not in schedule.available_slots:
-            raise ValueError("Selected time slot is not available.")
+        try:
+            async with self.db.begin():
+                stmt = (
+                    select(DoctorSchedule)
+                    .where(
+                        DoctorSchedule.doctor_id == doctor_id,
+                        DoctorSchedule.date_ == date_
+                    )
+                    .with_for_update()
+                )
+                result = await self.db.execute(stmt)
+                schedule: Optional[DoctorSchedule] = result.scalar_one_or_none()
 
-        schedule.available_slots.remove(time_)
+                if not schedule:
+                    raise ValueError("Нет расписания у врача на выбранную дату.")
 
-        hour, minute = map(int, time_.split(":"))
-        appointment_datetime = datetime.combine(date_, dt_time(hour, minute))
+                if not schedule.available_slots:
+                    raise ValueError("Нет доступных слотов на выбранную дату.")
 
+                if slot_str not in schedule.available_slots:
+                    raise ValueError("Выбранный слот недоступен.")
 
-        appointment = Appointment(
-            patient_id=self.user_id,
-            doctor_id=doctor_id,
-            time=appointment_datetime,
-            status="created"
-        )
-        self.db.add(appointment)
+                appt_stmt = select(Appointment).where(
+                    Appointment.doctor_id == doctor_id,
+                    Appointment.time == appointment_datetime
+                )
+                appt_res = await self.db.execute(appt_stmt)
+                existing = appt_res.scalar_one_or_none()
+                if existing:
+                    raise ValueError("Слот уже занят (обнаружена существующая запись).")
 
+                schedule.available_slots = [s for s in schedule.available_slots if s != slot_str]
+                self.db.add(schedule)  
 
-        self.db.add(schedule)
-        await self.db.commit()
+                appointment = Appointment(
+                    patient_id=patient_id,
+                    doctor_id=doctor_id,
+                    time=appointment_datetime,
+                    status="created"
+                )
+                self.db.add(appointment)
+
+            
+
+        except IntegrityError as e:
+            raise ValueError("Не удалось создать запись — слот, возможно, был занят параллельно.") from e
+
         await self.db.refresh(appointment)
-
         return appointment
+    
+    async def get_user_appointments(self, patient_id: int, future_only: bool = True):
+        stmt = select(Appointment).where(Appointment.patient_id==patient_id)
+        if future_only:
+            stmt = stmt.where(Appointment.time >= datetime.utcnow())
+        stmt = stmt.options(selectinload(Appointment.doctor))
+        result = await self.db.execute(stmt)
+        appointments = result.scalars().all()
+        return appointments

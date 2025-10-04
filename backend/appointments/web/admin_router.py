@@ -76,6 +76,14 @@ async def get_all_doctors(db: AsyncSession = Depends(get_db), admin: dict = Depe
                     "available_slots": s.available_slots
                 }
                 for s in d.schedules
+            ],
+            "appointments": [
+                {
+                    "date": a.time.date().isoformat(),    
+                    "appointment_time": a.time.time().isoformat(),  
+                    "status": a.status
+                }
+                for a in d.appointments
             ]
         }
         for d in doctors
