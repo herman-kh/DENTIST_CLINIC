@@ -28,3 +28,29 @@ class AppointmentOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+class UpdateAppoinment(BaseModel):
+    new_status: Literal["created", "cancelled"]
+    appointment_id: int
+    date_: date = Field(..., description="Дата для изменения")
+    time_slot: str = Field(..., description="Желаемый слот в формате HH:MM")
+
+    @field_validator("time_slot", mode="before")
+    def validate_slots(cls, slot):
+    
+        if not isinstance(slot, str) or len(slot) != 5 or slot[2] != ":" or not slot.replace(":", "").isdigit():
+            raise ValueError(f"Неверный формат времени: {slot}. Должен быть HH:MM")
+        return slot
+
+    model_config = {
+        "extra": "forbid"  
+    }
+
+
+class GetNearestAppointments(BaseModel):
+    speciality: Literal[
+        "Стоматолог терапевт",
+        "Стоматолог-хирург",
+        "Детский стоматолог"
+    ]
+    limit: int

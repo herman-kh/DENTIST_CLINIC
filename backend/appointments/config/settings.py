@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     AUTH_SERVICE_URL: str
     TOKEN_URL: str
     AUTH_SERVICE_EXTERNAL: str
+    MIN_HOURS_BEFORE_APPOINTMENT: int
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
     )
