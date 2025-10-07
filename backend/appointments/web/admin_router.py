@@ -4,6 +4,7 @@ from services.crud import AdminService
 from fastapi.responses import JSONResponse
 from schemas.doctors import CreateNewDoctor, UpdateDoctor
 from schemas.schedules import CreateDoctorSchedule, CreateDoctorScheduleForWeek
+from schemas.appointments import AppointmentResponse
 from data.database import get_db
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -132,3 +133,11 @@ async def add_week_schedule(
         "dates": [str(s.date_) for s in schedules],
         "admin": admin["sub"]
     }
+
+@router.get("/doctors/{doctor_id}/appointmets", response_model=list[AppointmentResponse])
+async def get_doctors_appointments(doctor_id : int,
+                                   db: AsyncSession = Depends(get_db), 
+                                   admin: dict = Depends(get_current_admin)):
+    admin_service = AdminService(db)
+    appointments = await admin_service.get_doctor_appointments(doctor_id)
+    return AppointmentResponse.list_from_orm(appointments)

@@ -54,3 +54,58 @@ class GetNearestAppointments(BaseModel):
         "Детский стоматолог"
     ]
     limit: int
+
+
+class AppointmentResponse(BaseModel):
+    id: int
+    patient_id: int
+    doctor_id: int
+    status: str
+    created_at: str
+    updated_at: str
+    date: str
+    time: str
+
+    @classmethod
+    def from_orm(cls, obj):
+        return cls(
+            id=obj.id,
+            patient_id=obj.patient_id,
+            doctor_id=obj.doctor_id,
+            status=obj.status,
+            created_at=obj.created_at.strftime("%Y-%m-%d %H:%M"),
+            updated_at=obj.updated_at.strftime("%Y-%m-%d %H:%M"),
+            date=obj.time.strftime("%Y-%m-%d"),
+            time=obj.time.strftime("%H:%M")
+        )
+    
+    @classmethod
+    def list_from_orm(cls, objs: list):
+        return [cls.from_orm(obj) for obj in objs]
+    
+
+
+class UserAppointmentResponse(BaseModel):
+    id: int
+    status: str
+    date: str
+    time: str
+    doctor_name: str
+
+    class Config:
+        orm_mode = True
+
+    @classmethod
+    def from_orm(cls, obj):
+        return cls(
+            id=obj.id,
+            status=obj.status,
+            date=obj.time.strftime("%Y-%m-%d"),
+            time=obj.time.strftime("%H:%M"),
+            doctor_name=obj.doctor.full_name 
+        )
+
+    @classmethod
+    def list_from_orm(cls, objs: list):
+        return [cls.from_orm(o) for o in objs]
+

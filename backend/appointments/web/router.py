@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from schemas.doctors import CreateNewDoctor, UpdateDoctor
 from schemas.schedules import CreateDoctorSchedule, CreateDoctorScheduleForWeek
 from data.database import get_db
-from schemas.appointments import ChooseTime, AppointmentOut, UpdateAppoinment, GetNearestAppointments
+from schemas.appointments import ChooseTime, AppointmentOut, UpdateAppoinment, UserAppointmentResponse
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -88,7 +88,7 @@ async def update_user_appointment(
         raise HTTPException(status_code=401,
                              detail=str(e))
     
-@router.get("/appointments/available")
+@router.get("/available")
 async def get_appointments_available(speciality: str = Query(...), limit: int = Query(5), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     try:
         user_service = UserService(db)
@@ -98,3 +98,11 @@ async def get_appointments_available(speciality: str = Query(...), limit: int = 
     except Exception as e:
         raise HTTPException(status_code=401,
                              detail=str(e))
+    
+
+@router.get("/appointments/me", response_model=list[UserAppointmentResponse])
+async def get_doctors_appointments(db: AsyncSession = Depends(get_db), 
+                                   user: dict = Depends(get_current_user)):
+    admin_service = UserService(db)
+    appointments = await admin_service.get_user_appointments(user['id'])
+    return UserAppointmentResponse.list_from_orm(appointments)

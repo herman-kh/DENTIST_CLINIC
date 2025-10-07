@@ -3,6 +3,7 @@ from config.settings import settings
 from .utils import decode_access_token
 import logging
 from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 from sqlalchemy.orm import selectinload
 from sqlalchemy import select, delete, update
 from sqlalchemy.exc import IntegrityError
@@ -108,6 +109,17 @@ class AdminService:
             schedule = await self.add_doctor_schedule(doctor_id, date_, slots)
             all_schedules.append(schedule)
         return all_schedules
+    
+
+    async def get_doctor_appointments(self, doctor_id=int):
+        tz = ZoneInfo("Europe/Minsk")
+        now = datetime.now(tz).replace(tzinfo=None)
+        stmt = await self.db.execute(select(Appointment).where(Appointment.doctor_id==doctor_id,
+                                                               Appointment.time >= now,
+                                                               Appointment.status == "created"))
+        appointments = stmt.scalars().all()
+        return appointments
+
     
 class UserService:
     def __init__(self, db: AsyncSession):
@@ -256,7 +268,8 @@ class UserService:
         if not doctors:
             raise ValueError("Врачи не найдены")
 
-        now = datetime.utcnow()
+        tz = ZoneInfo("Europe/Minsk")
+        now = datetime.now(tz).replace(tzinfo=None)
         end_date = now + timedelta(days=7)
         
         result = []
@@ -314,3 +327,13 @@ class UserService:
                 })
 
         return result
+    
+    async def get_user_appointments(self, user_id=int):
+        tz = ZoneInfo("Europe/Minsk")
+        now = datetime.now(tz).replace(tzinfo=None)
+        stmt = await self.db.execute(select(Appointment).options(selectinload(Appointment.doctor))
+                                     .where(Appointment.patient_id==user_id,
+                                                               Appointment.time >= now,
+                                                               Appointment.status == "created"))
+        appointments = stmt.scalars().all()
+        return appointments
