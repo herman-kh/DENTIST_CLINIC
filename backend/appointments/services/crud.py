@@ -101,7 +101,12 @@ class AdminService:
     ) -> List[DoctorSchedule]:
         
 
-        dates = await generate_week_schedule(start_date, days_ahead, start_time, end_time, slot_duration_minutes)
+        dates = await generate_week_schedule(start_date=start_date,
+                                            days=days_ahead,
+                                            working_days=[0,1,2,3,4],
+                                            start_time=start_time,
+                                            end_time=end_time,
+                                            duration_minutes=slot_duration_minutes)
         all_schedules = []
         for d in dates:
             slots = d["available_slots"]
@@ -119,6 +124,44 @@ class AdminService:
                                                                Appointment.status == "created"))
         appointments = stmt.scalars().all()
         return appointments
+    
+    async def add_slot_to_schedule(self, doctor_id: int, date_: date, slot_time: str):
+        result = await self.db.execute(
+            select(DoctorSchedule)
+            .where(DoctorSchedule.doctor_id == doctor_id)
+            .where(DoctorSchedule.date_ == date_)
+        )
+        schedule = result.scalar_one_or_none()
+        if not schedule:
+            schedule = DoctorSchedule(
+                doctor_id=doctor_id,
+                date_=date_,
+                available_slots=[slot_time]
+            )
+            self.db.add(schedule)
+            await self.db.commit()
+            return
+
+        if slot_time not in schedule.available_slots:
+            schedule.available_slots.append(slot_time)
+            self.db.add(schedule)
+            await self.db.commit()
+
+    async def remove_slot_from_schedule(self, doctor_id: int, date_: date, slot_time: str):
+        result = await self.db.execute(
+            select(DoctorSchedule)
+            .where(DoctorSchedule.doctor_id == doctor_id)
+            .where(DoctorSchedule.date_ == date_)
+        )
+        schedule = result.scalar_one_or_none()
+        if not schedule:
+            raise ValueError(f"Расписание на {date_} для врача {doctor_id} не найдено")
+
+        if slot_time in schedule.available_slots:
+            schedule.available_slots.remove(slot_time)
+            self.db.add(schedule)
+            await self.db.commit()
+
 
     
 class UserService:
@@ -139,12 +182,12 @@ class UserService:
         return schedule.available_slots
     
     async def book_appointment(
-        self,
-        doctor_id: int,
-        date_: "date",
-        time_: str,
-        patient_id: int
-    ) -> Appointment:
+    self,
+    doctor_id: int,
+    date_: "date",
+    time_: str,
+    patient_id: int
+) -> Appointment:
 
         try:
             parsed_time = datetime.strptime(time_, "%H:%M").time()
@@ -176,17 +219,23 @@ class UserService:
                 if slot_str not in schedule.available_slots:
                     raise ValueError("Выбранный слот недоступен.")
 
-                appt_stmt = select(Appointment).where(
-                    Appointment.doctor_id == doctor_id,
-                    Appointment.time == appointment_datetime
+                appt_stmt = (
+                    select(Appointment)
+                    .where(
+                        Appointment.doctor_id == doctor_id,
+                        Appointment.time == appointment_datetime
+                    )
+                    .options(selectinload(Appointment.doctor))
                 )
                 appt_res = await self.db.execute(appt_stmt)
                 existing = appt_res.scalar_one_or_none()
                 if existing:
                     raise ValueError("Слот уже занят (обнаружена существующая запись).")
 
-                schedule.available_slots = [s for s in schedule.available_slots if s != slot_str]
-                self.db.add(schedule)  
+                schedule.available_slots = [
+                    s for s in schedule.available_slots if s != slot_str
+                ]
+                self.db.add(schedule)
 
                 appointment = Appointment(
                     patient_id=patient_id,
@@ -195,16 +244,23 @@ class UserService:
                     status="created"
                 )
                 self.db.add(appointment)
-                self.db.commit()
-                self.db.refresh(appointment)
 
-            
+            # после выхода из begin() изменения уже закоммичены
+            await self.db.refresh(appointment)
+
+            stmt = (
+                select(Appointment)
+                .where(Appointment.id == appointment.id)
+                .options(selectinload(Appointment.doctor))
+            )
+            res = await self.db.execute(stmt)
+            appointment = res.scalar_one()
+
+            return appointment
 
         except IntegrityError as e:
             raise ValueError("Не удалось создать запись — слот, возможно, был занят параллельно.") from e
 
-        await self.db.refresh(appointment)
-        return appointment
     
     async def get_user_appointments(self, patient_id: int, future_only: bool = True):
         stmt = select(Appointment).where(Appointment.patient_id==patient_id)
@@ -215,50 +271,73 @@ class UserService:
         appointments = result.scalars().all()
         return appointments
     
-    async def update_user_appointment(self, appointments_id: int, date_: date, time_slot: time, new_status:str, user_id:int):
-        
+    async def update_user_appointment(
+        self,
+        appointments_id: int,
+        date_: date,
+        time_slot: str,
+        new_status: str,
+        user_id: int
+    ):
+        admin_service = AdminService(self.db)
+
         try:
             parsed_time = datetime.strptime(time_slot, "%H:%M").time()
         except ValueError:
             raise ValueError("Неверный формат времени. Ожидается 'HH:MM'.")
-     
-        time_slot = parsed_time
-
+        
         result = await self.db.execute(
-            select(Appointment).where(Appointment.id==appointments_id)
+            select(Appointment).options(selectinload(Appointment.doctor)).where(Appointment.id==appointments_id)
         )
         appointment = result.scalar_one_or_none()
         if not appointment:
             raise ValueError('Запись не была найдена!')
-
         if appointment.patient_id != user_id:
-            raise ValueError('У вас нет доступа для изменения этой записи') 
-        if appointment.time - datetime.utcnow() < timedelta(hours=settings.MIN_HOURS_BEFORE_APPOINTMENT):
+            raise ValueError('У вас нет доступа для изменения этой записи')
+        
+        tz = ZoneInfo("Europe/Minsk")
+        now = datetime.now(tz).replace(tzinfo=None)
+        if appointment.time - now < timedelta(hours=settings.MIN_HOURS_BEFORE_APPOINTMENT):
             raise ValueError(f"Нельзя менять запись меньше чем за {settings.MIN_HOURS_BEFORE_APPOINTMENT} часов до приёма")
-        if date_:
-            appointment.time = datetime.combine(date_, appointment.time.time())
 
-        
-        if time_slot:
-            appointment.time = datetime.combine(appointment.time.date(), time_slot)
-        
+        old_date = appointment.time.date()
+        old_time = appointment.time.strftime("%H:%M")
+
+        if new_status.lower() in ["cancelled", "deleted"]:
+            await self.add_slot_to_schedule(appointment.doctor_id, old_date, old_time)
+            appointment.status = new_status
+            appointment.updated_at = now
+            await self.db.commit()
+            await self.db.refresh(appointment)
+            return appointment
+
+
+        new_slot_dt = datetime.combine(date_, parsed_time)
+        if date_ and parsed_time:
             existing = await self.db.execute(
                 select(Appointment)
+                .options(selectinload(Appointment.doctor))
                 .where(Appointment.doctor_id == appointment.doctor_id)
-                .where(Appointment.time == appointment.time)
+                .where(Appointment.time == new_slot_dt)
                 .where(Appointment.id != appointment.id)
             )
             if existing.scalars().first():
                 raise ValueError("Выбранный слот уже занят")
-        
+
+            await admin_service.add_slot_to_schedule(appointment.doctor_id, old_date, old_time)
+            await admin_service.remove_slot_from_schedule(appointment.doctor_id, date_, time_slot)
+
+            appointment.time = new_slot_dt
+
         appointment.status = new_status
-        appointment.updated_at = datetime.utcnow()
+        appointment.updated_at = now
 
         self.db.add(appointment)
         await self.db.commit()
         await self.db.refresh(appointment)
 
         return appointment
+
     
     async def get_nearest_available_slots(self, speciality: str, limit: int):
         doctors = await self.db.execute(

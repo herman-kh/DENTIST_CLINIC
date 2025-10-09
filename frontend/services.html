@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Услуги | Стоматология</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Табы */
+    .tabs {
+      display: flex;
+      justify-content: center;
+      border-bottom: 2px solid #eee;
+      margin-bottom: 20px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .tab {
+      padding: 12px 20px;
+      cursor: pointer;
+      background: #f9f9f9;
+      border-radius: 8px 8px 0 0;
+      border: 1px solid #ddd;
+      border-bottom: none;
+      font-weight: bold;
+      color: #0099cc;
+      transition: background 0.2s;
+    }
+    .tab:hover {
+      background: #e6f7ff;
+    }
+    .tab.active {
+      background: white;
+      border-bottom: 2px solid white;
+      box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
+    }
+
+    /* Контент вкладок */
+    .tab-content {
+      display: none;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 0 0 12px 12px;
+      background: white;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .tab-content h3 {
+      color: #0099cc;
+      margin-bottom: 10px;
+    }
+    .tab-content button {
+      margin-top: 15px;
+      background: #0099cc;
+      color: white;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+    .tab-content button:hover {
+      background: #0077a3;
+    }
+  </style>
+</head>
+<body>
+<header>Наши услуги</header>
+
+<div class="container" style="max-width: 900px;">
+  <h2>Список услуг</h2>
+
+  <!-- Вкладки -->
+  <div class="tabs">
+    <div class="tab active" data-tab="tab1">Терапевтическая</div>
+    <div class="tab" data-tab="tab2">Хирургическая</div>
+    <div class="tab" data-tab="tab3">Ортопедия</div>
+    <div class="tab" data-tab="tab4">Ортодонтия</div>
+    <div class="tab" data-tab="tab5">Профилактика</div>
+  </div>
+
+  <!-- Контент -->
+  <div id="tab1" class="tab-content active">
+    <h3>Терапевтическая стоматология</h3>
+    <p>Лечение кариеса, пульпита и других заболеваний зубов. Используем современные материалы и технологии.</p>
+    <button>Записаться</button>
+  </div>
+
+  <div id="tab2" class="tab-content">
+    <h3>Хирургическая стоматология</h3>
+    <p>Удаление зубов, имплантация и сложные операции любой сложности.</p>
+    <button>Записаться</button>
+  </div>
+
+  <div id="tab3" class="tab-content">
+    <h3>Ортопедия</h3>
+    <p>Протезирование зубов, коронки, виниры — для восстановления улыбки и функций.</p>
+    <button>Записаться</button>
+  </div>
+
+  <div id="tab4" class="tab-content">
+    <h3>Ортодонтия</h3>
+    <p>Исправление прикуса с помощью брекетов и элайнеров. Индивидуальный подход к каждому пациенту.</p>
+    <button>Записаться</button>
+  </div>
+
+  <div id="tab5" class="tab-content">
+    <h3>Профилактика</h3>
+    <p>Профессиональная чистка зубов, отбеливание, уход и профилактика заболеваний.</p>
+    <button>Записаться</button>
+  </div>
+</div>
+
+<script>
+  const tabs = document.querySelectorAll('.tab');
+  const contents = document.querySelectorAll('.tab-content');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      contents.forEach(c => c.classList.remove('active'));
+
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.tab).classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>

@@ -26,7 +26,7 @@ def test_token_contains_custom_data():
     token = create_access_token(data)
     decoded = jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
 
-
+ 
     assert decoded["sub"] == "test_user"
     assert decoded["role"] == "admin"
     assert "exp" in decoded

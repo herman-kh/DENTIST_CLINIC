@@ -7,7 +7,9 @@ from schemas.schedules import CreateDoctorSchedule, CreateDoctorScheduleForWeek
 from schemas.appointments import AppointmentResponse
 from data.database import get_db
 from typing import List
+from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
+
 
 router = APIRouter(tags=['admin'])
 
@@ -141,3 +143,4 @@ async def get_doctors_appointments(doctor_id : int,
     admin_service = AdminService(db)
     appointments = await admin_service.get_doctor_appointments(doctor_id)
     return AppointmentResponse.list_from_orm(appointments)
+

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
-from services.utils import get_current_admin, decode_access_token, get_current_user
+from services.utils import get_current_admin, decode_access_token, get_current_user, send_message
 from services.crud import UserService
 from fastapi.responses import JSONResponse
 from schemas.doctors import CreateNewDoctor, UpdateDoctor
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/appointments", tags=["Appointments"])
 
 @router.post(
     "/create",
-    response_model=AppointmentOut,
+    response_model=UserAppointmentResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Создать запись на приём",
     description="Позволяет пользователю выбрать время для записи к врачу."
@@ -36,6 +36,14 @@ async def create_appointment(
             time_=data.time_slot,
             patient_id=user["id"]
         )
+        result = UserAppointmentResponse(
+                                        id=appointment.id,
+                                        date=appointment.time.date().isoformat(),
+                                        time=appointment.time.strftime("%H:%M"),
+                                        doctor_name=appointment.doctor.full_name,
+                                        status=appointment.status
+                                        )
+        
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -44,10 +52,21 @@ async def create_appointment(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ошибка при создании записи"
+            detail=str(e)
         ) from e
+    
+    message_text = (
+        f"Здравствуйте!\n\n"
+        f"Вы успешно записались в стоматологию Sorizo.\n\n"
+        f"- 👨‍⚕️ Ваш доктор : {result.doctor_name}\n"
+        f"- 📅 Дата: {result.date}\n"
+        f"- ⏰ Время: {result.time}\n"
+        f"Пожалуйста, приходите вовремя!\n"
+        f"Спасибо, что выбрали нашу клинику!"
+    )
 
-    return appointment
+    await send_message(user['sub'], message_text)
+    return result
 
 @router.get("/get_user_appointments")
 async def get_user_appointments(db: AsyncSession = Depends(get_db),
@@ -70,7 +89,7 @@ async def get_user_appointments(db: AsyncSession = Depends(get_db),
         })
     return result
 
-@router.patch("/update_appointment_status")
+@router.patch("/update_appointment_status", response_model=UserAppointmentResponse)
 async def update_user_appointment(
                     data: UpdateAppoinment,
                     db: AsyncSession= Depends(get_db),
@@ -83,7 +102,16 @@ async def update_user_appointment(
                                                              data.new_status,
                                                              user['id']
                                                              )
-        return appointment
+        result = UserAppointmentResponse.from_orm(appointment)
+        message_text = (
+            f"Здравствуйте!\n\n"
+            f"Ваш талон в стоматологии Sorizo был обновлён:\n\n"
+            f"- 📅 Дата: {result.date}\n"
+            f"- ⏰ Время: {result.time}\n"
+            f"Спасибо, что выбрали нашу клинику!"
+        )
+        await send_message(user['sub'], message_text)
+        return result
     except Exception as e:
         raise HTTPException(status_code=401,
                              detail=str(e))
@@ -105,4 +133,5 @@ async def get_doctors_appointments(db: AsyncSession = Depends(get_db),
                                    user: dict = Depends(get_current_user)):
     admin_service = UserService(db)
     appointments = await admin_service.get_user_appointments(user['id'])
+
     return UserAppointmentResponse.list_from_orm(appointments)

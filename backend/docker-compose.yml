@@ -72,6 +72,25 @@ services:
     networks:
       - app-network
 
+  notifications_service:
+    build: 
+      context: ./notifications
+      dockerfile: Dockerfile
+    container_name: notifications_service
+    restart: always
+    ports:
+      - "8003:8003"
+    depends_on:
+      - redis
+    volumes:
+      - ./notifications:/app  
+    env_file:
+      - ./notifications/.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    networks:
+      - app-network
+
 volumes:
   auth_db_dentist_clinic_data:
     driver: local

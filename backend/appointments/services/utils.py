@@ -5,9 +5,20 @@ from fastapi import HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from datetime import datetime, time, timedelta, date
 from typing import List
+import aiosmtplib
+import logging
+from email.message import EmailMessage
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
 
 JWT_SECRET = settings.SECRET_KEY
 JWT_ALGORITHM = settings.JWT_ALGORITHM
+EMAIL_SENDER=settings.FROM_EMAIL
+EMAIL_PASSWORD=settings.EMAIL_KEY
+
 
 def decode_access_token(token: str):
     try:
@@ -94,7 +105,10 @@ async def generate_week_schedule(
     duration_minutes: int = 30
 ) -> List[dict]:
     schedule_list = []
-    
+
+    if isinstance(working_days, str):
+        working_days = [int(d) for d in working_days if d.isdigit()]
+
     for i in range(days):
         day = start_date + timedelta(days=i)
         if day.weekday() not in working_days:
@@ -106,3 +120,21 @@ async def generate_week_schedule(
         })
     
     return schedule_list
+
+async def send_message(email: str, message: str) -> bool:
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = 'Ваш талон в стоматологии Sorizo!'
+        msg['From'] = EMAIL_SENDER
+        msg['To'] = email
+        msg.set_content(message)
+
+        async with aiosmtplib.SMTP(hostname='smtp.gmail.com', port=465, use_tls=True) as smtp:
+            await smtp.login(EMAIL_SENDER, EMAIL_PASSWORD)
+            await smtp.send_message(msg)
+
+        logging.info("Письмо отправлено!")
+        return True
+    except Exception as e:
+        logging.info(f'Ошибка: {e}')
+        return False

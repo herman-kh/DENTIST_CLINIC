@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str
     AUTH_SERVICE_URL: str
     TOKEN_URL: str
+    EMAIL_KEY: str
+    FROM_EMAIL: str
     AUTH_SERVICE_EXTERNAL: str
     MIN_HOURS_BEFORE_APPOINTMENT: int
     model_config = SettingsConfigDict(

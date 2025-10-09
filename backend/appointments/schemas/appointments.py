@@ -108,4 +108,3 @@ class UserAppointmentResponse(BaseModel):
     @classmethod
     def list_from_orm(cls, objs: list):
         return [cls.from_orm(o) for o in objs]
-
