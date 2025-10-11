@@ -103,6 +103,39 @@ services:
       - app-network
     restart: unless-stopped
 
+  content_service:
+    build: 
+      context: ./content
+      dockerfile: Dockerfile
+    container_name: content_service
+    restart: always
+    ports:
+      - "8004:8004"  
+    depends_on:
+      - content_db_dentist_clinic
+    volumes:
+      - ./content:/app  
+    env_file:
+      - ./content/.env  
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://amin:my_super_password@content_db_dentist_clinic:5432/contents
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+    networks:
+      - app-network
+  content_db_dentist_clinic:
+    image: postgres:15
+    container_name: content_db_dentist_clinic
+    restart: always
+    environment:
+      POSTGRES_USER: amin
+      POSTGRES_PASSWORD: my_super_password
+      POSTGRES_DB: contents
+    ports:
+      - "5435:5432"
+    volumes:
+      - content_db_dentist_clinic_data:/var/lib/postgresql/data
+    networks:
+      - app-network
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -128,6 +161,9 @@ volumes:
     driver: local
   appointments_db_dentist_clinic_data:
     driver: local
+  content_db_dentist_clinic_data:
+    driver: local
+    
 networks:
   app-network:
     name: app-network
