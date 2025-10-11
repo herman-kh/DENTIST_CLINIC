@@ -113,6 +113,7 @@ async def update_user_appointment(
             f"Спасибо, что выбрали нашу клинику!"
         )
         await send_message(user['sub'], message_text)
+        await producer.send_appointment_created(result.id, user['sub'], result.doctor_name, result.date, result.time, result.status)
         return result
     except Exception as e:
         raise HTTPException(status_code=401,
