@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from schemas.doctors import CreateNewDoctor, UpdateDoctor
 from schemas.schedules import CreateDoctorSchedule, CreateDoctorScheduleForWeek
 from data.database import get_db
+from services.kafka_producer import producer
 from schemas.appointments import ChooseTime, AppointmentOut, UpdateAppoinment, UserAppointmentResponse
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,6 +44,7 @@ async def create_appointment(
                                         doctor_name=appointment.doctor.full_name,
                                         status=appointment.status
                                         )
+        await producer.send_appointment_created(result.id, user['sub'], result.doctor_name, result.date, result.time, result.status)
         
     except ValueError as e:
         raise HTTPException(

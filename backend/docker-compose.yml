@@ -49,6 +49,7 @@ services:
       - ./appointments/.env  
     environment:
       - DATABASE_URL=postgresql+asyncpg://amin:my_super_password@appointments_db_dentist_clinic:5432/appointments
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     networks:
       - app-network
   appointments_db_dentist_clinic:
@@ -67,6 +68,7 @@ services:
       - app-network
   redis:
     image: redis:7
+    container_name: redis
     ports:
       - "6379:6379"
     networks:
@@ -87,9 +89,39 @@ services:
     env_file:
       - ./notifications/.env
     environment:
-      - REDIS_URL=redis://redis:6379/0
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     networks:
       - app-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0  
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: "2181"
+      ZOOKEEPER_TICK_TIME: "2000"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: "1"
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - app-network
+    restart: unless-stopped
 
 volumes:
   auth_db_dentist_clinic_data:
