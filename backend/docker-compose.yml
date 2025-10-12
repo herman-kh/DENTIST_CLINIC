@@ -131,7 +131,7 @@ services:
       POSTGRES_PASSWORD: my_super_password
       POSTGRES_DB: contents
     ports:
-      - "5435:5432"
+      - "5433:5432"
     volumes:
       - content_db_dentist_clinic_data:/var/lib/postgresql/data
     networks:
