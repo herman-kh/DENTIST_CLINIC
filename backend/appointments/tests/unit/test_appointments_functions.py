@@ -4,24 +4,7 @@ from datetime import date, timedelta
 import pytest
 import jwt
 from fastapi import HTTPException
-
-
-fake_settings_module = types.ModuleType("config.settings")
-class FakeSettings:
-    SECRET_KEY = "secret"
-    JWT_ALGORITHM = "HS256"
-    FROM_EMAIL = "from@example.com"
-    EMAIL_KEY = "password"
-    AUTH_SERVICE_URL = "http://auth/"
-    AUTH_SERVICE_EXTERNAL = "http://auth_ext/"
-    TOKEN_URL = "token"
-fake_settings_module.settings = FakeSettings()
-
-sys.modules["config.settings"] = fake_settings_module
-sys.modules["config"] = types.ModuleType("config")
-sys.modules["config"].settings = fake_settings_module.settings
-
-from appointments.services import utils as u  
+from services import utils as u  
 
 
 class FakeSMTPSuccess:
