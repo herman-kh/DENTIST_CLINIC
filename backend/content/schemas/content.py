@@ -38,3 +38,10 @@ class SpecialtyRead(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class SpecialtyUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon_url: Optional[str] = None
+    is_active: Optional[bool] = None

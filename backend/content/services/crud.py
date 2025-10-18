@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi.exceptions import HTTPException
 from data.models import Specialty
+from schemas.content import SpecialtyUpdate
 from slugify import slugify
 
 class AdminService:
@@ -30,4 +31,19 @@ class AdminService:
             stmt = stmt.where(Specialty.is_active == True)
         result = await self.db.execute(stmt)
         return result.scalars().all()
+    
+    async def update_specialty(self, specialty_id: str, data: SpecialtyUpdate) -> Specialty:
+        stmt = select(Specialty).where(Specialty.id == specialty_id)
+        result = await self.db.execute(stmt)
+        specialty = result.scalar_one_or_none()
+
+        if not specialty:
+            raise ValueError("Специальность не найдена")
+
+        for field, value in data.dict(exclude_unset=True).items():
+            setattr(specialty, field, value)
+
+        await self.db.commit()
+        await self.db.refresh(specialty)
+        return specialty
     
