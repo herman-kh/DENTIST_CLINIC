@@ -31,3 +31,5 @@ python-multipart==0.0.20
 authlib==1.6.4
 httpx
 itsdangerous
+text-unidecode
+python-slugify

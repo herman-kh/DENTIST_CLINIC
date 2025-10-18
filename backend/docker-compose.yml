@@ -155,7 +155,7 @@ services:
     networks:
       - app-network
     restart: unless-stopped
-
+  
 volumes:
   auth_db_dentist_clinic_data:
     driver: local
