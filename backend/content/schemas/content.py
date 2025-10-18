@@ -24,3 +24,17 @@ class SpecialtyOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+class SpecialtyRead(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+    description: Optional[str]
+    icon_url: Optional[str]
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime]
+
+    class Config:
+        orm_mode = True

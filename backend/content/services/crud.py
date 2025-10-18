@@ -24,3 +24,10 @@ class AdminService:
         await self.db.refresh(speciality)
         return speciality
     
+    async def get_all_specialties(self, active_only: bool = True) -> list[Specialty]:
+        stmt = select(Specialty)
+        if active_only:
+            stmt = stmt.where(Specialty.is_active == True)
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+    
