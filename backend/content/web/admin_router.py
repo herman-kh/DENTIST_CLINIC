@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from fastapi.exceptions import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from data.database import get_db
@@ -31,5 +31,18 @@ async def update_specialty(
     try:
         result = await admin_service.update_specialty(specialty_id, data)
         return result
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Специальность не найдена")
+    
+
+@router.delete('/specialties/{specialty_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_specialty(
+    specialty_id: str,
+    db: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    admin_service = AdminService(db)
+    try:
+        await admin_service.delete_specialty(specialty_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Специальность не найдена")

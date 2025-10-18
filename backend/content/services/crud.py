@@ -4,6 +4,7 @@ from fastapi.exceptions import HTTPException
 from data.models import Specialty
 from schemas.content import SpecialtyUpdate
 from slugify import slugify
+from datetime import datetime
 
 class AdminService:
     def __init__(self, db: AsyncSession):
@@ -47,3 +48,15 @@ class AdminService:
         await self.db.refresh(specialty)
         return specialty
     
+    async def delete_specialty(self, specialty_id: str) -> None:
+        stmt = select(Specialty).where(Specialty.id == specialty_id)
+        result = await self.db.execute(stmt)
+        specialty = result.scalar_one_or_none()
+
+        if not specialty:
+            raise ValueError("Специальность не найдена")
+
+        specialty.deleted_at = datetime.utcnow()
+    
+        await self.db.delete(specialty)
+        await self.db.commit()
