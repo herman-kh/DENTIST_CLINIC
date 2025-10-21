@@ -83,3 +83,10 @@ async def patch_service(
     service = await AdminService(db).patch_service(service_id, data)
     return service
 
+@router.delete("/services/{service_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_service(
+    service_id: int,
+    db: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    await AdminService(db).delete_service(service_id)

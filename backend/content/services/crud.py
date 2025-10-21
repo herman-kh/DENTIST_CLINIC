@@ -126,3 +126,11 @@ class AdminService:
         await self.db.commit()
         await self.db.refresh(service)
         return service
+    
+    async def delete_service(self, service_id: int) -> None:
+        service = await self.db.get(Service, service_id)
+        if not service:
+            raise HTTPException(status_code=404, detail="Услуга не найдена")
+
+        await self.db.delete(service)
+        await self.db.commit()
