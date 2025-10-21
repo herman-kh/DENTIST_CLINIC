@@ -1,12 +1,19 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query
 from fastapi.exceptions import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from data.database import get_db
 from schemas.content import SpecialtyCreate, SpecialtyRead, SpecialtyOut, SpecialtyUpdate
+from schemas.service import ServiceOut, ServiceCreate
 from services.crud import AdminService
 from services.utils import get_current_admin
+from uuid import UUID
+from typing import List
+from schemas.service import ServicePatch
+
 
 router = APIRouter(prefix="/content", tags=['admin'])
+
+
 
 @router.post('/create_specify', response_model=SpecialtyOut)
 async def create_specify(data: SpecialtyCreate, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
@@ -46,3 +53,33 @@ async def delete_specialty(
         await admin_service.delete_specialty(specialty_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Специальность не найдена")
+    
+
+@router.post("/services", response_model=ServiceOut)
+async def create_service(
+    data: ServiceCreate,
+    db: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    service = await AdminService(db).create_service(data)
+    return service
+
+@router.get("/services{speciality_id}", response_model=List[ServiceOut])
+async def get_services_from_speciality(
+    speciality_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    service = await AdminService(db).get_all_services_in_speciality(speciality_id)
+    return service
+
+@router.patch("/services/{service_id}", response_model=ServiceOut)
+async def patch_service(
+    service_id: int,
+    data: ServicePatch,
+    db: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    service = await AdminService(db).patch_service(service_id, data)
+    return service
+

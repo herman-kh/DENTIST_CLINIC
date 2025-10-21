@@ -19,6 +19,8 @@ class Specialty(Base):
     updated_at: Mapped[str] = mapped_column(TIMESTAMP, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=True)
 
+    services: Mapped[list["Service"]] = relationship(back_populates="specialty")
+
 
 class Service(Base):
     __tablename__ = "services"
@@ -35,6 +37,8 @@ class Service(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP, default=datetime.utcnow, onupdate=datetime.utcnow)
+    specialty_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("specialties.id", ondelete="SET NULL"), nullable=True)
+    specialty: Mapped["Specialty"] = relationship(back_populates="services")
 
 
     doctor_links: Mapped[List["DoctorService"]] = relationship(back_populates="service", cascade="all, delete-orphan")
